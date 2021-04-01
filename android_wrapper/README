@@ -1,0 +1,5 @@
+To compile the samples, see:
+https://en.wikibooks.org/wiki/OpenGL_Programming/Installation/Android_NDK
+
+To understand how to wrapper is built, check:
+https://en.wikibooks.org/wiki/OpenGL_Programming/Android_GLUT_Wrapper

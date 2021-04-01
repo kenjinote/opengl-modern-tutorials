@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My Triangular Fade</title>
+    <meta charset="UTF-8" />
+    <script src="../common-webgl/shader_utils.js"></script>
+    <style>body { background-color: lightgrey; }</style>
+  </head>
+  
+  <body>
+    <script id="vertexShader" type="x-shader/x-vertex">
+      attribute vec2 coord2d;
+      attribute vec3 v_color;
+      varying vec3 f_color;
+
+      void main(void) {
+          gl_Position = vec4(coord2d, 0.0, 1.0);
+	  f_color = v_color;
+      }
+    </script>
+
+    <script id="fragmentShader" type="x-shader/x-fragment">
+      uniform float fade;
+      varying vec3 f_color;
+
+      void main(void) {
+	  gl_FragColor = vec4(f_color.r, f_color.g, f_color.b, fade);
+      }
+    </script>
+
+    <script>
+/**
+ * From the OpenGL Programming wikibook: http://en.wikibooks.org/wiki/OpenGL_Programming
+ * This file is in the public domain.
+ * Contributors: Sylvain Beucler
+ */
+
+'use strict';
+
+var vboTriangle, vboTriangleColors;
+var program;
+var attributeCoord2d, attributeVColor;
+var uniformFade;
+var gl;
+
+function init_resources() {
+    var triangleAttributes = [
+	 0.0,  0.8,  1.0, 1.0, 0.0,
+	-0.8, -0.8,  0.0, 0.0, 1.0,
+	 0.8, -0.8,  1.0, 0.0, 0.0,
+    ];
+    vboTriangle = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vboTriangle);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangleAttributes), gl.STATIC_DRAW);
+
+    var linkOk = false;
+
+    var vs, fs;
+    if (!(vs = createShader('vertexShader', gl.VERTEX_SHADER))) return false;
+    if (!(fs = createShader('fragmentShader', gl.FRAGMENT_SHADER))) return false;
+
+    program = gl.createProgram();
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    var linkOk = gl.getProgramParameter(program, gl.LINK_STATUS);
+    if (!linkOk) {
+	console.error('glLinkProgram:');
+	return false;
+    }
+
+    var attributeName;
+    attributeName = 'coord2d';
+    attributeCoord2d = gl.getAttribLocation(program, attributeName);
+    if (attributeCoord2d == -1) {
+        console.error('Could not bind attribute ' + attributeName);
+	return false;
+    }
+    attributeName = 'v_color';
+    attributeVColor = gl.getAttribLocation(program, attributeName);
+    if (attributeVColor == -1) {
+        console.error('Could not bind attribute ' + attributeName);
+	return false;
+    }
+    var uniformName;
+    uniformName = 'fade';
+    uniformFade = gl.getUniformLocation(program, uniformName);
+    if (uniformFade == -1) {
+	console.error('Could not bind uniform ' + uniformName);
+	return false;
+    }
+
+    return true;
+}
+
+function logic() {
+    // alpha 0->1->0 every 5 seconds
+    var curFade = Math.sin(new Date().getTime() / 1000.0 * (2*3.14) / 5) / 2 + 0.5;
+    gl.useProgram(program);
+    gl.uniform1f(uniformFade, curFade);
+}
+
+function render() {
+    gl.clearColor(1.0, 1.0, 1.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    
+    gl.useProgram(program);
+    gl.enableVertexAttribArray(attributeCoord2d);
+    gl.enableVertexAttribArray(attributeVColor);
+    gl.bindBuffer(gl.ARRAY_BUFFER, vboTriangle);
+    gl.vertexAttribPointer(
+	attributeCoord2d, // attribute
+	2,                // number of elements per vertex, here (x,y)
+	gl.FLOAT,         // the type of each element
+	false,            // take our values as-is
+	5 * 32/8,         // next coord2d appears every 5 floats
+	0                 // offset of first element
+    );
+    gl.vertexAttribPointer(
+	attributeVColor,  // attribute
+	3,                // number of elements per vertex, here (r,g,b)
+	gl.FLOAT,         // the type of each element
+	false,            // take our values as-is
+	5 * 32/8,         // stride
+	2 * 32/8          // offset
+    );
+    
+    /* Push each element in buffer_vertices to the vertex shader */
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    
+    gl.disableVertexAttribArray(attributeCoord2d);
+    gl.disableVertexAttribArray(attributeVColor);
+
+    //freeResources();
+}
+
+function freeResources() {
+    gl.deleteProgram(program);
+    gl.deleteBuffer(vboTriangle);
+}
+
+function frame() {
+    window.requestAnimationFrame(frame);
+    logic();
+    render();
+}
+
+function main() {
+    var canvas = document.createElement('canvas');
+    canvas.setAttribute('width', 640);
+    canvas.setAttribute('height', 480);
+    canvas.setAttribute('style', 'background: white;');
+    document.body.appendChild(canvas);
+    // https://webglfundamentals.org/webgl/lessons/webgl-and-alpha.html
+    gl = canvas.getContext('webgl', { alpha: false });
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    if (init_resources()) {
+	window.requestAnimationFrame(frame);
+    }
+}
+
+main();
+    </script>
+  </body>
+</html>

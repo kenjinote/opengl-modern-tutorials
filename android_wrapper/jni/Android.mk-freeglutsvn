@@ -1,0 +1,17 @@
+LOCAL_PATH := $(call my-dir)
+
+include $(CLEAR_VARS)
+
+LOCAL_MODULE    := native-activity
+LOCAL_SRC_FILES := GL/glew.c ../../common/shader_utils.cpp \
+	$(subst jni/,,$(wildcard jni/src/*.cpp jni/src/*.c))
+LOCAL_CPPFLAGS  := -DFREEGLUT_GLES -I/usr/src/glm
+LOCAL_CXXFLAGS  := -gstabs+
+LOCAL_LDLIBS    := -llog -landroid -lGLESv2 -lGLESv1_CM -lEGL
+LOCAL_STATIC_LIBRARIES := freeglut-gles freetype soil
+
+include $(BUILD_SHARED_LIBRARY)
+
+$(call import-module,freeglut-gles)
+$(call import-module,freetype)
+$(call import-module,soil)

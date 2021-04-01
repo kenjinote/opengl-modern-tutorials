@@ -1,0 +1,17 @@
+First you need to install development packages:
+
+  https://en.wikibooks.org/wiki/OpenGL_Programming/Installation/Linux
+  https://en.wikibooks.org/wiki/OpenGL_Programming/Installation/Windows  # for MinGW or MSys
+
+To compile an example, go to its directory and just type:
+
+  cd tut01/
+  make
+
+It will create an executable (such as 'triangle', 'cube' or 'teapot')
+that you can run:
+
+  ./triangle
+
+You can compile all examples in one go by calling "make" in the top level
+directory.

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My First Triangle</title>
+    <meta charset="UTF-8" />
+    <style>body { background-color: lightgrey; }</style>
+  </head>
+  
+  <body>
+    <script>
+/**
+ * From the OpenGL Programming wikibook: http://en.wikibooks.org/wiki/OpenGL_Programming
+ * This file is in the public domain.
+ * Contributors: Sylvain Beucler
+ */
+
+'use strict';
+
+var vboTriangle;
+var program;
+var attributeCoord2d;
+var gl;
+
+function init_resources() {
+    var triangleVertices = [
+        0.0,  0.8,
+       -0.8, -0.8,
+        0.8, -0.8,
+    ];
+    vboTriangle = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vboTriangle);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangleVertices), gl.STATIC_DRAW);
+    // Note: No client-side arrays in WebGL
+    // https://www.khronos.org/registry/webgl/specs/1.0/#6.2
+
+    var compileOk = false, linkOk = false;
+    
+    var vs = gl.createShader(gl.VERTEX_SHADER);
+    var vs_source = ''
+        + 'attribute vec2 coord2d;                  '
+        + 'void main(void) {                        '
+        + '  gl_Position = vec4(coord2d, 0.0, 1.0); '
+        + '}';
+    gl.shaderSource(vs, vs_source);
+    gl.compileShader(vs);
+    var compileOk = gl.getShaderParameter(vs, gl.COMPILE_STATUS);
+    if (!compileOk) {
+        console.error('Error in vertex shader\n');
+        return false;
+    }
+
+    var fs = gl.createShader(gl.FRAGMENT_SHADER);
+    var fs_source = ''
+    + 'void main(void) {        '
+    + '  gl_FragColor[0] = 0.0; '
+    + '  gl_FragColor[1] = 0.0; '
+    + '  gl_FragColor[2] = 1.0; '
+    + '}';
+    gl.shaderSource(fs, fs_source);
+    gl.compileShader(fs);
+    var compileOk = gl.getShaderParameter(fs, gl.COMPILE_STATUS);
+    if (!compileOk) {
+        console.error('Error in fragment shader\n');
+        return false;
+    }
+
+    program = gl.createProgram();
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    var linkOk = gl.getProgramParameter(program, gl.LINK_STATUS);
+    if (!linkOk) {
+        console.error('glLinkProgram:');
+        return false;
+    }
+
+    var attributeName = 'coord2d';
+    attributeCoord2d = gl.getAttribLocation(program, attributeName);
+    if (attributeCoord2d == -1) {
+        console.error('Could not bind attribute ' + attributeName);
+        return false;
+    }
+    
+    return true;
+}
+
+function render() {
+    gl.clearColor(1.0, 1.0, 1.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    
+    gl.useProgram(program);
+    gl.enableVertexAttribArray(attributeCoord2d);
+    /* Describe our vertices array to OpenGL (it can't guess its format automatically) */
+    gl.bindBuffer(gl.ARRAY_BUFFER, vboTriangle);
+    gl.vertexAttribPointer(
+        attributeCoord2d, // attribute
+        2,                // number of elements per vertex, here (x,y)
+        gl.FLOAT,         // the type of each element
+        false,            // take our values as-is
+        0,                // no extra data between each position
+        0                 // offset of first element
+    );
+    
+    /* Push each element in buffer_vertices to the vertex shader */
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    
+    gl.disableVertexAttribArray(attributeCoord2d);
+
+    freeResources();
+}
+
+function freeResources() {
+    gl.deleteProgram(program);
+    gl.deleteBuffer(vboTriangle);
+}
+
+function main() {
+    var canvas = document.createElement('canvas');
+    canvas.setAttribute('width', 640);
+    canvas.setAttribute('height', 480);
+    document.body.appendChild(canvas);
+    gl = canvas.getContext('webgl', { alpha: false });
+    
+    if (init_resources()) {
+        window.requestAnimationFrame(render);
+    }
+}
+
+main();
+    </script>
+  </body>
+</html>

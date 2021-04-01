@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My Textured Cube</title>
+    <meta charset="UTF-8" />
+    <script src="../common-webgl/shader_utils.js"></script>
+    <script src="https://cdn.rawgit.com/humbletim/glm-js/31fd034/build/glm-js.min.js"></script>
+    <style>
+      body { background-color: lightgrey; margin: 0; overflow: hidden; }
+    </style>
+  </head>
+  
+  <body>
+    <script id="vertexShader" type="x-shader/x-vertex">
+      attribute vec3 coord3d;
+      attribute vec2 texcoord;
+      varying vec2 f_texcoord;
+      uniform mat4 mvp;
+      
+      void main(void) {
+        gl_Position = mvp * vec4(coord3d, 1.0);
+        f_texcoord = texcoord;
+      }
+    </script>
+
+    <script id="fragmentShader" type="x-shader/x-fragment">
+      varying vec2 f_texcoord;
+      uniform sampler2D mytexture;
+      
+      void main(void) {
+        vec2 flipped_texcoord = vec2(f_texcoord.x, 1.0 - f_texcoord.y);
+        gl_FragColor = texture2D(mytexture, flipped_texcoord);
+      }
+    </script>
+
+    <script>
+/**
+ * From the OpenGL Programming wikibook: http://en.wikibooks.org/wiki/OpenGL_Programming
+ * This file is in the public domain.
+ * Contributors: Sylvain Beucler
+ */
+
+'use strict';
+
+var screenWidth=800, screenHeight=600;
+var vboCubeVertices, vboCubeTexCoords;
+var iboCubeElements;
+var program;
+var textureId;
+var attributeCoord3d, attributeTexCoord;
+var uniformMVP, uniformMyTexture;
+var res_texture;
+var gl;
+
+function init_resources() {
+    var cubeVertices = [
+	// front
+	-1.0, -1.0,  1.0,
+	 1.0, -1.0,  1.0,
+	 1.0,  1.0,  1.0,
+	-1.0,  1.0,  1.0,
+	// top
+	-1.0,  1.0,  1.0,
+	 1.0,  1.0,  1.0,
+	 1.0,  1.0, -1.0,
+	-1.0,  1.0, -1.0,
+	// back
+	 1.0, -1.0, -1.0,
+	-1.0, -1.0, -1.0,
+	-1.0,  1.0, -1.0,
+	 1.0,  1.0, -1.0,
+	// bottom
+	-1.0, -1.0, -1.0,
+	 1.0, -1.0, -1.0,
+	 1.0, -1.0,  1.0,
+	-1.0, -1.0,  1.0,
+	// left
+	-1.0, -1.0, -1.0,
+	-1.0, -1.0,  1.0,
+	-1.0,  1.0,  1.0,
+	-1.0,  1.0, -1.0,
+	// right
+	 1.0, -1.0,  1.0,
+	 1.0, -1.0, -1.0,
+	 1.0,  1.0, -1.0,
+	 1.0,  1.0,  1.0,
+    ];
+    vboCubeVertices = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vboCubeVertices);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeVertices), gl.STATIC_DRAW);
+
+    var cubeTexCoordsOneFace = [
+	// front
+	0.0, 0.0,
+	1.0, 0.0,
+	1.0, 1.0,
+	0.0, 1.0,
+    ];
+    var cubeTexCoords = [];
+    for (var i = 0; i < 6; i++)
+	cubeTexCoords = cubeTexCoords.concat(cubeTexCoordsOneFace);
+    vboCubeTexCoords = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vboCubeTexCoords);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeTexCoords), gl.STATIC_DRAW);
+
+    var cubeElements = [
+	// front
+	0,  1,  2,
+	2,  3,  0,
+	// top
+	4,  5,  6,
+	6,  7,  4,
+	// back
+	8,  9, 10,
+	10, 11,  8,
+	// bottom
+	12, 13, 14,
+	14, 15, 12,
+	// left
+	16, 17, 18,
+	18, 19, 16,
+	// right
+	20, 21, 22,
+	22, 23, 20,
+    ];
+    iboCubeElements = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iboCubeElements);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(cubeElements), gl.STATIC_DRAW);
+
+    textureId = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, textureId);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texImage2D(gl.TEXTURE_2D,  // target
+        0,  // level, 0 = base, no minimap,
+        gl.RGBA, // internalformat
+        gl.RGBA,  // format
+        gl.UNSIGNED_BYTE, // type
+        res_texture);
+
+    var linkOk = false;
+
+    var vs, fs;
+    if (!(vs = createShader('vertexShader', gl.VERTEX_SHADER))) return false;
+    if (!(fs = createShader('fragmentShader', gl.FRAGMENT_SHADER))) return false;
+
+    program = gl.createProgram();
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    var linkOk = gl.getProgramParameter(program, gl.LINK_STATUS);
+    if (!linkOk) {
+	console.error('glLinkProgram:');
+	return false;
+    }
+
+    var attributeName;
+    attributeName = 'coord3d';
+    attributeCoord3d = gl.getAttribLocation(program, attributeName);
+    if (attributeCoord3d == -1) {
+        console.error('Could not bind attribute ' + attributeName);
+	return false;
+    }
+    attributeName = 'texcoord';
+    attributeTexCoord = gl.getAttribLocation(program, attributeName);
+    if (attributeTexCoord == -1) {
+        console.error('Could not bind attribute ' + attributeName);
+	return false;
+    }
+    var uniformName;
+    uniformName = 'mvp';
+    uniformMVP = gl.getUniformLocation(program, uniformName);
+    if (uniformMVP == -1) {
+	console.error('Could not bind uniform_fade ' + uniformName);
+	return false;
+    }
+    uniformName = 'mytexture';
+    uniformMyTexture = gl.getUniformLocation(program, uniformName);
+    if (uniformMyTexture == -1) {
+	console.error('Could not bind uniform_fade ' + uniformName);
+	return false;
+    }
+
+    return true;
+}
+
+function logic() {
+    var angle = new Date().getTime() / 1000.0 * glm.radians(15);  // base 15° per second
+    var x_axis = glm.rotate(glm.mat4(1), angle*3, glm.vec3(1, 0, 0));
+    var y_axis = glm.rotate(glm.mat4(1), angle*2, glm.vec3(0, 1, 0));
+    var z_axis = glm.rotate(glm.mat4(1), angle*4, glm.vec3(0, 0, 1));
+    var anim = x_axis['*'](y_axis)['*'](z_axis);
+	
+    var model = glm.translate(glm.mat4(1), glm.vec3(0, 0, -4));
+    var view = glm.lookAt(glm.vec3(0, 2, 0), glm.vec3(0, 0, -4), glm.vec3(0, 1, 0));
+    var projection = glm.perspective(45, 1.0*screenWidth/screenHeight, 0.1, 10);
+    
+    var mvp = projection['*'](view)['*'](model)['*'](anim);
+    gl.useProgram(program);
+    gl.uniformMatrix4fv(uniformMVP, false, mvp.array);
+}
+
+function render() {
+    gl.clearColor(1.0, 1.0, 1.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+    
+    gl.useProgram(program);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform1i(uniformMyTexture, /*GL_TEXTURE*/0);
+    gl.bindTexture(gl.TEXTURE_2D, textureId);
+
+    gl.enableVertexAttribArray(attributeCoord3d);
+    // Describe our vertices array to OpenGL (it can't guess its format automatically)
+    gl.bindBuffer(gl.ARRAY_BUFFER, vboCubeVertices);
+    gl.vertexAttribPointer(
+	attributeCoord3d, // attribute
+	3,                // number of elements per vertex, here (x,y,z)
+	gl.FLOAT,         // the type of each element
+	false,            // take our values as-is
+	0,                // no extra data between each position
+	0                 // offset of first element
+    );
+
+    gl.enableVertexAttribArray(attributeTexCoord);
+    gl.bindBuffer(gl.ARRAY_BUFFER, vboCubeTexCoords);
+    gl.vertexAttribPointer(
+	attributeTexCoord,  // attribute
+	2,                // number of elements per vertex, here (x,y)
+	gl.FLOAT,         // the type of each element
+	false,            // take our values as-is
+	0,                // no extra data between each position
+	0                 // offset of first element
+    );
+    
+    /* Push each element in buffer_vertices to the vertex shader */
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iboCubeElements);
+    var size = gl.getBufferParameter(gl.ELEMENT_ARRAY_BUFFER, gl.BUFFER_SIZE);
+    //console.log(size);
+    gl.drawElements(gl.TRIANGLES, size/2, gl.UNSIGNED_SHORT, 0);
+    
+    gl.disableVertexAttribArray(attributeCoord3d);
+    gl.disableVertexAttribArray(attributeTexCoord);
+
+    //freeResources();
+}
+
+function onResize(ev) {
+    var canvas = document.getElementById('screen');
+    screenWidth = window.innerWidth;
+    screenHeight = window.innerHeight;
+    canvas.setAttribute('width', screenWidth);
+    canvas.setAttribute('height', screenHeight);
+    gl.viewport(0, 0, screenWidth, screenHeight);
+}
+
+function freeResources() {
+    gl.deleteProgram(program);
+    gl.deleteBuffer(vboCubeVertices);
+    gl.deleteBuffer(vboCubeTexCoords);
+    gl.deleteBuffer(iboCubeElements);
+    gl.deleteTexture(textureId);
+}
+
+function frame() {
+    window.requestAnimationFrame(frame);
+    logic();
+    render();
+}
+
+function main() {
+    var canvas = document.createElement('canvas');
+    canvas.setAttribute('id', 'screen');
+    canvas.setAttribute('style', 'background: white;');
+    document.body.appendChild(canvas);
+    // https://webglfundamentals.org/webgl/lessons/webgl-and-alpha.html
+    gl = canvas.getContext('webgl', { alpha: false });
+
+    gl.enable(gl.BLEND);
+    gl.enable(gl.DEPTH_TEST);
+    //gl.depthFunc(gl.LESS);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    res_texture = new Image();
+    res_texture.onload = function() {
+	if (init_resources()) {
+	    window.addEventListener('resize', onResize);
+	    onResize();
+	    window.requestAnimationFrame(frame);
+	}
+    }
+    res_texture.src = 'res_texture.png';
+}
+
+main();
+    </script>
+  </body>
+</html>

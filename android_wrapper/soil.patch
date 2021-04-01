@@ -1,0 +1,158 @@
+Submitted to upstream maintainer May 2012
+No answer as of May 2014
+
+diff -Nru -x build -x '*.a' -x '*.exe' SOIL/projects/Android/Android.mk SOIL.android/projects/Android/Android.mk
+--- SOIL/projects/Android/Android.mk	1970-01-01 01:00:00.000000000 +0100
++++ SOIL.android/projects/Android/Android.mk	2012-05-19 15:32:03.000000000 +0200
+@@ -0,0 +1,13 @@
++# Android module for SOIL - to use it in your project:
++# LOCAL_STATIC_LIBRARIES := soil
++# $(call import-module,soil)
++
++LOCAL_PATH:= $(call my-dir)
++
++include $(CLEAR_VARS)
++
++LOCAL_MODULE := soil
++LOCAL_SRC_FILES := lib/libSOIL.a
++LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/include
++
++include $(PREBUILT_STATIC_LIBRARY)
+diff -Nru -x build -x '*.a' -x '*.exe' SOIL/projects/Android/Android.mk~ SOIL.android/projects/Android/Android.mk~
+--- SOIL/projects/Android/Android.mk~	1970-01-01 01:00:00.000000000 +0100
++++ SOIL.android/projects/Android/Android.mk~	2012-05-19 15:00:29.000000000 +0200
+@@ -0,0 +1,13 @@
++# Android module for SOIL - to use it in your project:
++# LOCAL_STATIC_LIBRARIES := freeglut-gles2 freetype soil
++# $(call import-module,soil)
++
++LOCAL_PATH:= $(call my-dir)
++
++include $(CLEAR_VARS)
++
++LOCAL_MODULE := soil
++LOCAL_SRC_FILES := lib/libSOIL.a
++LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/include
++
++include $(PREBUILT_STATIC_LIBRARY)
+diff -Nru -x build -x '*.a' -x '*.exe' SOIL/projects/Android/Makefile SOIL.android/projects/Android/Makefile
+--- SOIL/projects/Android/Makefile	1970-01-01 01:00:00.000000000 +0100
++++ SOIL.android/projects/Android/Makefile	2012-05-19 15:25:16.000000000 +0200
+@@ -0,0 +1,69 @@
++# SOIL makefile for linux (based on the AngelScript makefile)
++# Adapted for Android
++# To complete the installation of the library
++# cd src/
++# mkdir -p build/obj
++# cd build/
++# make -f ../../projects/Android/Makefile
++# make -f ../../projects/Android/Makefile install
++
++# For 'make install' to work, set LOCAL according to your system configuration
++LOCAL = $(CURDIR)/soil
++
++LIB = libSOIL.a
++INC = SOIL.h
++
++SRCDIR = ../../src
++LIBDIR = ../../lib
++INCDIR = ../../src
++OBJDIR = obj
++
++CXX = arm-linux-androideabi-gcc
++CXXFLAGS = -O2 -s -Wall -DSOIL_GLES
++DELETER = rm -f
++COPIER = cp
++
++SRCNAMES = \
++  image_helper.c \
++  stb_image_aug.c  \
++  image_DXT.c \
++  SOIL.c \
++
++OBJ = $(addprefix $(OBJDIR)/, $(notdir $(SRCNAMES:.c=.o)))
++BIN = $(LIBDIR)/$(LIB)
++
++all: $(BIN)
++
++where-am-i = $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST))
++THIS_MAKEFILE := $(call where-am-i)
++
++$(BIN): $(OBJ)
++	arm-linux-androideabi-ar r $(BIN) $(OBJ)
++	arm-linux-androideabi-ranlib $(BIN)
++	@echo -------------------------------------------------------------------
++	@echo Done. As root, type 'make install' to install the library.
++
++$(OBJDIR)/%.o: $(SRCDIR)/%.c
++	$(CXX) $(CXXFLAGS) -o $@ -c $<
++
++
++clean:
++	$(DELETER) $(OBJ) $(BIN)
++
++install: $(BIN)
++	@echo Installing to: $(LOCAL)/lib and $(LOCAL)/include...
++	@echo -------------------------------------------------------------------
++	mkdir -p "$(LOCAL)/lib"
++	$(COPIER) "$(BIN)" "$(LOCAL)/lib"
++	mkdir -p "$(LOCAL)/include/SOIL"
++	$(COPIER) "$(INCDIR)/$(INC)" "$(LOCAL)/include/SOIL"
++	$(COPIER) "$(shell dirname "$(THIS_MAKEFILE)")/Android.mk" "$(LOCAL)/"
++	@echo -------------------------------------------------------------------
++	@echo SOIL library installed. Enjoy!
++
++uninstall:
++	$(DELETER) $(LOCAL)/include/$(INC) $(LOCAL)/lib/$(LIB)
++	@echo -------------------------------------------------------------------
++	@echo SOIL library uninstalled.
++
++.PHONY: all clean install uninstall
+diff -Nru -x build -x '*.a' -x '*.exe' SOIL/src/SOIL.c SOIL.android/src/SOIL.c
+--- SOIL/src/SOIL.c	2008-07-07 18:13:28.000000000 +0200
++++ SOIL.android/src/SOIL.c	2012-05-19 15:19:28.000000000 +0200
+@@ -25,6 +25,9 @@
+ 	#include <OpenGL/gl.h>
+ 	#include <Carbon/Carbon.h>
+ 	#define APIENTRY
++#elif defined(SOIL_GLES)
++	#include <GLES/gl.h>
++	#define APIENTRY
+ #else
+ 	#include <GL/gl.h>
+ 	#include <GL/glx.h>
+@@ -1343,7 +1346,11 @@
+ 		} else
+ 		{
+ 			/*	unsigned int clamp_mode = SOIL_CLAMP_TO_EDGE;	*/
++#if defined(SOIL_GLES)
++			unsigned int clamp_mode = GL_CLAMP_TO_EDGE;
++#else
+ 			unsigned int clamp_mode = GL_CLAMP;
++#endif
+ 			glTexParameteri( opengl_texture_type, GL_TEXTURE_WRAP_S, clamp_mode );
+ 			glTexParameteri( opengl_texture_type, GL_TEXTURE_WRAP_T, clamp_mode );
+ 			if( opengl_texture_type == SOIL_TEXTURE_CUBE_MAP )
+@@ -1810,7 +1817,11 @@
+ 		} else
+ 		{
+ 			/*	unsigned int clamp_mode = SOIL_CLAMP_TO_EDGE;	*/
++#if defined(SOIL_GLES)
++			unsigned int clamp_mode = GL_CLAMP_TO_EDGE;
++#else
+ 			unsigned int clamp_mode = GL_CLAMP;
++#endif
+ 			glTexParameteri( opengl_texture_type, GL_TEXTURE_WRAP_S, clamp_mode );
+ 			glTexParameteri( opengl_texture_type, GL_TEXTURE_WRAP_T, clamp_mode );
+ 			glTexParameteri( opengl_texture_type, SOIL_TEXTURE_WRAP_R, clamp_mode );
+@@ -1964,7 +1975,9 @@
+ 		{
+ 			/*	and find the address of the extension function	*/
+ 			P_SOIL_GLCOMPRESSEDTEXIMAGE2DPROC ext_addr = NULL;
+-			#ifdef WIN32
++			#if defined(SOIL_GLES)
++				ext_addr = glCompressedTexImage2D;
++			#elif defined(WIN32)
+ 				ext_addr = (P_SOIL_GLCOMPRESSEDTEXIMAGE2DPROC)
+ 						wglGetProcAddress
+ 						(

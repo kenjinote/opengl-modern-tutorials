@@ -1,0 +1,35 @@
+# /usr/src/SDL2/build-scripts/androidbuild.sh:
+# find the android update project line, and add --target android-XX to
+# it (replace XX with your SDK-installed API).
+# See also my http://wiki.libsdl.org/Android
+
+# Base SDL2
+/usr/src/SDL2/build-scripts/androidbuild.sh org.wikibooks.opengl /dev/null
+cp -a /usr/src/SDL2/build/org.wikibooks.opengl/* .
+
+# SDL2_image
+ln -s /usr/src/SDL2_image jni/
+sed -i -e 's/^LOCAL_SHARED_LIBRARIES.*/& SDL2_image/' jni/src/Android.mk
+
+# Base directory is jni/src, populate it:
+ln -nfs ../../GL jni/src/
+ln -nfs ../../common-sdl2 jni/
+ln -nfs ../tutXXX-sdl2 assets
+
+# GLM:
+ln -nfs .../glm jni/src/
+echo 'APP_STL := stlport_static' >> jni/Application.mk
+
+# FreeType
+# Follow https://en.wikibooks.org/wiki/OpenGL_Programming/Installation/Android_NDK#FreeType
+
+# Edit jni/src/Android.mk:
+#LOCAL_SRC_FILES := $(SDL_PATH)/src/main/android/SDL_android_main.c \
+#	GL/glew.c ../common-sdl2/shader_utils.cpp \
+#	$(subst jni/src/,,$(wildcard jni/src/../../assets/*.cpp))
+
+ndk-build clean
+ndk-build -j$(nproc)
+
+ant debug
+ant installd

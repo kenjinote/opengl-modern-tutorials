@@ -1,0 +1,13 @@
+*~
+*.o
+cube
+triangle
+sphere
+teapot
+obj-viewer
+post-processing
+graph
+sprites
+text
+select*/select
+glescraft*/glescraft

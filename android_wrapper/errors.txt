@@ -1,0 +1,20 @@
+Tut03, Tut04
+------------
+
+I/stdout  ( 4686): In mgmain JNI_OnLoad
+I/stderr  ( 4686): triangle.f.glsl:Compile failed.
+I/stderr  ( 4686): ERROR: 0:1: 'vec3' : No precision defined for this type
+I/stderr  ( 4686): ERROR: 0:2: 'float' : No precision defined for this type
+
+=> add:
+precision mediump float;
+at the top of the shader.
+
+
+Tut04
+-----
+
+/usr/src/glm/glm/glm.hpp:86:18: error: limits: No such file or directory
+
+=> add STL support in jni/Application.mk:
+APP_STL := stlport_static
